@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const realInput = fs.readFileSync(path.join(__dirname, '/input.txt'), 'utf-8')
 
 const testInput = `199
 200
@@ -11,8 +12,6 @@ const testInput = `199
 269
 260
 263`
-
-const realInput = fs.readFileSync(path.join(__dirname, '/input.txt'), 'utf-8')
 
 const calc = (rows) => {
     let increases = 0
