@@ -62,6 +62,7 @@ function part2(input, iterations) {
     const [template, rules] = parse(input)
     const rulesMap = Object.fromEntries(rules)
 
+    // init pairs
     const pairCounts = template.split('').reduce((acc, letter, key) => {
         if (template[key+1]) {
             acc[`${template[key]}${template[key+1]}`] = 1
@@ -71,17 +72,14 @@ function part2(input, iterations) {
 
     let pairs = {...pairCounts}
 
-    const doIteration = (pairs) => {
+    // run stuff
+    for (let i=0; i<iterations; i++) {
         const newPairs = {...pairs}
         const operations = [] // [pair, delta]
         Object.entries(newPairs).forEach(([pair, count]) => {
             const insertion = rulesMap[pair]
-
-            const leftIndex = `${pair[0]}${insertion}`
-            const rightIndex = `${insertion}${pair[1]}`
-
-            operations.push([leftIndex, newPairs[pair]])
-            operations.push([rightIndex, newPairs[pair]])
+            operations.push([`${pair[0]}${insertion}`, newPairs[pair]])
+            operations.push([`${insertion}${pair[1]}`, newPairs[pair]])
             operations.push([pair, -newPairs[pair]])
         })
         operations.forEach(([pair, delta]) => {
@@ -89,12 +87,10 @@ function part2(input, iterations) {
             newPairs[pair] = newPairs[pair] + delta
         })
 
-        return Object.fromEntries(Object.entries(newPairs).filter(([k, v]) => v > 0))
-    }
-    for (let i=0; i<iterations; i++) {
-        pairs = doIteration(pairs)
+        pairs = Object.fromEntries(Object.entries(newPairs).filter(([k, v]) => v > 0))
     }
 
+    // calculate frequency
     const frequencies = Object.entries(Object.entries(pairs).reduce((acc, [pair, qty]) => {
         const letter = pair[1]
         if (!acc[letter]) {
