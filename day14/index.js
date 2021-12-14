@@ -21,10 +21,15 @@ BC -> B
 CC -> N
 CN -> C`
 
-function part1(input, iterations) {
+const parse = (input) => {
     const [templateStr, rulesStr] = input.split('\n\n')
     const template = templateStr
     const rules = rulesStr.split('\n').map((rule) => rule.split(' -> '))
+    return [template, rules]
+}
+
+function part1(input, iterations) {
+    const [template, rules] = parse(input)
 
     const doIteration = (template) => {
         let insertions = []
@@ -49,20 +54,63 @@ function part1(input, iterations) {
     })
 
     frequencies.sort((a, b) => a[1] - b[1])
-
     return frequencies[frequencies.length-1][1] - frequencies[0][1]
 }
 
 
-function part2(input) {
-    const rows = input.split('\n')
+function part2(input, iterations) {
+    const [template, rules] = parse(input)
+    const rulesMap = Object.fromEntries(rules)
 
+    const pairCounts = template.split('').reduce((acc, letter, key) => {
+        if (template[key+1]) {
+            acc[`${template[key]}${template[key+1]}`] = 1
+        }
+        return acc
+    }, {})
+
+    let pairs = {...pairCounts}
+
+    const doIteration = (pairs) => {
+        const newPairs = {...pairs}
+        const operations = [] // [pair, delta]
+        Object.entries(newPairs).forEach(([pair, count]) => {
+            const insertion = rulesMap[pair]
+
+            const leftIndex = `${pair[0]}${insertion}`
+            const rightIndex = `${insertion}${pair[1]}`
+
+            operations.push([leftIndex, newPairs[pair]])
+            operations.push([rightIndex, newPairs[pair]])
+            operations.push([pair, -newPairs[pair]])
+        })
+        operations.forEach(([pair, delta]) => {
+            if (!newPairs[pair]) { newPairs[pair] = 0 }
+            newPairs[pair] = newPairs[pair] + delta
+        })
+
+        return Object.fromEntries(Object.entries(newPairs).filter(([k, v]) => v > 0))
+    }
+    for (let i=0; i<iterations; i++) {
+        pairs = doIteration(pairs)
+    }
+
+    const frequencies = Object.entries(Object.entries(pairs).reduce((acc, [pair, qty]) => {
+        const letter = pair[1]
+        if (!acc[letter]) {
+            acc[letter] = 0
+        }
+        acc[letter] += qty
+        return acc
+    }, {[template[0]]: 1}))
+    frequencies.sort((a, b) => a[1] - b[1])
+    return frequencies[frequencies.length-1][1] - frequencies[0][1]
 }
 
 console.log('-- test input')
 console.log({ part1: part1(testInput, 10) })
-// console.log({ part2: part1(testInput, 40) })
+console.log({ part2: part2(testInput, 40) })
 
 console.log('-- real input')
 console.log({ part1: part1(realInput, 10) })
-// console.log({ part2: part1(realInput, 40) })
+console.log({ part2: part2(realInput, 40) })
