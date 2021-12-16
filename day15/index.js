@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const realInput = fs.readFileSync(path.join(__dirname, '/input.txt'), 'utf-8')
+const { FibonacciHeap } = require('@tyriar/fibonacci-heap/lib/fibonacciHeap');
 
 const testInput = `1163751742
 1381373672
@@ -15,91 +16,69 @@ const testInput = `1163751742
 
 function part1(input) {
     const rows = input.split('\n').map((r) => r.split('').map((n) => +n))
-
     return calculate(rows)
 }
 
-
 function calculate(rows) {
-    const rowMaxIndex = rows.length-1
-    const colMaxIndex = rows[0].length - 1
-    const finishIndex = `${rowMaxIndex},${colMaxIndex}`
-    const current = [0, 0]
+    const finishIndex = `${rows.length-1},${rows[0].length-1}`
+    const startIndex = '0,0'
 
-    const getRisk = ([rowNo, colNo]) => rows[rowNo][colNo]
-
-    const getPossiblePaths = ([rowNo, colNo]) => {
-        return  [[1, 0], [0, 1], [-1, 0], [0, -1]].reduce((acc, [dr, dc]) => {
-            const newRowNo = rowNo + dr
-            const newColNo = colNo + dc
-            if (newRowNo >= 0 && newColNo >= 0 && newRowNo <= rowMaxIndex && newColNo <= colMaxIndex) {
-                acc.push([newRowNo, newColNo])
-            }
-            return acc
-        }, [])
+    const getWeight = (strIndex) => {
+        const [r, c] = strIndex.split(',')
+        return rows[r]?.[c]
     }
 
-    // {path, score}
-    const stack = []
+    const adjList = rows.reduce((adjList, row, rowNo) => {
+        row.forEach((score, colNo) => {
+            const index = `${rowNo},${colNo}`
+            if (!adjList[index]) { adjList[index] = [] }
 
-    // add initial neighbours to the stack
-    getPossiblePaths(current).forEach((toCoords) => {
-        const path = [current, toCoords]
-        // const visited = path.reduce((acc, [row, col]) => ({...acc, [`${row},${col}`]: true}))
-        stack.push({
-            path,
-            score: getRisk(toCoords),
-            // visited
+            [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([deltaRow, deltaCol]) => {
+                const toIndex = `${rowNo+deltaRow},${colNo+deltaCol}`
+                const weight = getWeight(toIndex)
+                if (weight) {
+                    adjList[index].push([toIndex, weight])
+                }
+            })
         })
-    })
+        return adjList
+    }, {})
 
-    const lowestScoresToCoords = {}
-    let winPath
-    let i=0
-    while (stack.length > 0) {
-        i++
-        if (i % 100000 === 0) {
-            console.log({i, len: stack.length, lowest: lowestScoresToCoords[finishIndex]})
+    const allNodeIds = Object.keys(adjList)
+    const distances = allNodeIds.reduce((acc, nodeId) => {
+        acc[nodeId] = nodeId === startIndex ? 0 : Infinity;
+        return acc;
+    }, {});
+
+    const unvisitedHeap = new FibonacciHeap()
+
+    const unvisited = allNodeIds.reduce((acc, nodeId) => {
+        acc[nodeId] = unvisitedHeap.insert(distances[nodeId], nodeId)
+        return acc
+    }, {})
+
+    let currentNode = unvisited[startIndex]
+
+    while (currentNode) {
+        adjList[currentNode.value].forEach(([nodeId, weight]) => {
+            if (unvisited[nodeId]) {
+                const tentativeWeight = distances[currentNode.value] + weight
+                if (tentativeWeight < distances[nodeId]) {
+                    distances[nodeId] = tentativeWeight
+                    unvisitedHeap.decreaseKey(unvisited[nodeId], tentativeWeight)
+                }
+            }
+        })
+        delete unvisited[currentNode.value]
+
+        if (currentNode.value === finishIndex) {
+            // end node reached
+            break
         }
-        const { path, score } = stack.pop()
-        const lastNodeCoords = path[path.length - 1]
-        const prevToLastCoords = path[path.length - 2]
-        for (let toCoords of getPossiblePaths(lastNodeCoords)) {
-            const coordIndex = toCoords.join()
-
-            // if (visited[coordIndex]) {
-            //     continue
-            // }
-            const newScore = getRisk(toCoords) + score
-
-            // don't go to where we just came from
-            if (`${prevToLastCoords[0]},${prevToLastCoords[1]}` === coordIndex) {
-                continue
-            }
-            if (coordIndex === finishIndex) {
-                winPath = [...path, toCoords]
-            }
-
-            const minStepsToEnd = (colMaxIndex - toCoords[0]) + (rowMaxIndex - toCoords[1])
-            const minScoreToFinish = newScore + minStepsToEnd
-            // check if we already have a better final score than this score
-            if (minScoreToFinish > lowestScoresToCoords[finishIndex]) {
-                continue
-            }
-
-            if (lowestScoresToCoords[coordIndex] === undefined || newScore < lowestScoresToCoords[coordIndex]) {
-                lowestScoresToCoords[coordIndex] = newScore
-                // visited[`${toCoords[0]},${toCoords[1]}`] = true
-                stack.unshift({
-                    path: [...path, toCoords],
-                    score: newScore,
-                    // visited: visited
-                })
-            }
-        }
+        currentNode = unvisitedHeap.extractMinimum()
     }
 
-    return lowestScoresToCoords[finishIndex]
+    return currentNode.key
 }
 
 
@@ -136,9 +115,9 @@ function part2(input) {
 }
 
 console.log('-- test input')
-// console.log({ part1: part1(testInput) })
-// console.log({ part2: part2(testInput) })
+console.log({ part1: part1(testInput) })
+console.log({ part2: part2(testInput) })
 
 console.log('-- real input')
-// console.log({ part1: part1(realInput) })
+console.log({ part1: part1(realInput) })
 console.log({ part2: part2(realInput) })
